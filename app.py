@@ -242,13 +242,9 @@ if uploaded_file:
             t = diario["TEMP_MEDIA"].iloc[i]
             tmax = diario["TEMP_MAX"].iloc[i]
 
-            # CONDICIONES FAVORABLES
-
             if 21 <= t <= 30:
 
                 indice += 20
-
-            # CALOR LETAL
 
             if tmax > 35:
 
@@ -277,7 +273,7 @@ if uploaded_file:
         )
 
         # ---------------------------------------------------
-        # MILDIU PRIMARIO POR EVENTOS
+        # MILDIU PRIMARIO
         # ---------------------------------------------------
 
         mildiu_prim = []
@@ -300,14 +296,10 @@ if uploaded_file:
 
             )
 
-            # NUEVO EVENTO
-
             if condiciones and not evento:
 
                 evento = True
                 desarrollo = 20
-
-            # DESARROLLO
 
             elif evento:
 
@@ -319,16 +311,12 @@ if uploaded_file:
 
                     desarrollo += 10
 
-            # RESET
-
             if desarrollo >= 100:
 
                 desarrollo = 0
                 evento = False
 
             mildiu_prim.append(desarrollo)
-
-            # SEVERIDAD
 
             if desarrollo == 0:
 
@@ -394,8 +382,6 @@ if uploaded_file:
                 evento = False
 
             mildiu_sec.append(desarrollo)
-
-            # SEVERIDAD
 
             if desarrollo == 0:
 
@@ -496,174 +482,162 @@ if uploaded_file:
         )
 
         # ---------------------------------------------------
-        # GRID ENFERMEDADES
-        # ---------------------------------------------------
-
-        col1, col2 = st.columns(2)
-
         # BOTRITIS
+        # ---------------------------------------------------
 
-        with col1:
+        st.subheader("🟠 Botritis")
 
-            st.subheader("🟠 Botritis")
+        fig_bot = go.Figure()
 
-            fig = go.Figure()
+        fig_bot.add_trace(
 
-            fig.add_trace(
+            go.Scatter(
 
-                go.Scatter(
+                x=diario["DIA"],
+                y=diario["BOTRITIS"],
 
-                    x=diario["DIA"],
-                    y=diario["BOTRITIS"],
+                fill="tozeroy",
 
-                    fill="tozeroy",
+                mode="lines",
 
-                    mode="lines",
+                line_shape="spline",
 
-                    line_shape="spline",
-
-                    line=dict(
-                        color="#ff7f0e",
-                        width=3
-                    )
+                line=dict(
+                    color="#ff7f0e",
+                    width=3
                 )
             )
+        )
 
-            fig.update_yaxes(range=[0,100])
+        fig_bot.update_yaxes(range=[0,100])
 
-            fig = estilo_figura(fig)
+        fig_bot = estilo_figura(fig_bot)
 
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
+        st.plotly_chart(
+            fig_bot,
+            use_container_width=True
+        )
 
+        # ---------------------------------------------------
         # MILDIU PRIMARIO
+        # ---------------------------------------------------
 
-        with col2:
+        st.subheader("🟢 Mildiu primario")
 
-            st.subheader("🟢 Mildiu primario")
+        fig_mp = go.Figure()
 
-            fig = go.Figure()
+        fig_mp.add_trace(
 
-            fig.add_trace(
+            go.Scatter(
 
-                go.Scatter(
+                x=diario["DIA"],
+                y=diario["MILDIU_PRIM"],
 
-                    x=diario["DIA"],
-                    y=diario["MILDIU_PRIM"],
+                fill="tozeroy",
 
-                    fill="tozeroy",
+                mode="lines",
 
-                    mode="lines",
+                line_shape="spline",
 
-                    line_shape="spline",
-
-                    line=dict(
-                        color="#2ca02c",
-                        width=3
-                    )
+                line=dict(
+                    color="#2ca02c",
+                    width=3
                 )
             )
+        )
 
-            fig.update_yaxes(range=[0,100])
+        fig_mp.update_yaxes(range=[0,100])
 
-            fig = estilo_figura(fig)
+        fig_mp = estilo_figura(fig_mp)
 
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
+        st.plotly_chart(
+            fig_mp,
+            use_container_width=True
+        )
 
-            st.write(
-                "Estado:",
-                diario["SEVERIDAD_PRIM"].iloc[-1]
-            )
+        st.write(
+            "Estado:",
+            diario["SEVERIDAD_PRIM"].iloc[-1]
+        )
 
         # ---------------------------------------------------
-        # SEGUNDA FILA
-        # ---------------------------------------------------
-
-        col3, col4 = st.columns(2)
-
         # MILDIU SECUNDARIO
+        # ---------------------------------------------------
 
-        with col3:
+        st.subheader("🟢 Mildiu secundario")
 
-            st.subheader("🟢 Mildiu secundario")
+        fig_ms = go.Figure()
 
-            fig = go.Figure()
+        fig_ms.add_trace(
 
-            fig.add_trace(
+            go.Scatter(
 
-                go.Scatter(
+                x=diario["DIA"],
+                y=diario["MILDIU_SEC"],
 
-                    x=diario["DIA"],
-                    y=diario["MILDIU_SEC"],
+                fill="tozeroy",
 
-                    fill="tozeroy",
+                mode="lines",
 
-                    mode="lines",
+                line_shape="spline",
 
-                    line_shape="spline",
-
-                    line=dict(
-                        color="#006400",
-                        width=3
-                    )
+                line=dict(
+                    color="#006400",
+                    width=3
                 )
             )
+        )
 
-            fig.update_yaxes(range=[0,100])
+        fig_ms.update_yaxes(range=[0,100])
 
-            fig = estilo_figura(fig)
+        fig_ms = estilo_figura(fig_ms)
 
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
+        st.plotly_chart(
+            fig_ms,
+            use_container_width=True
+        )
 
-            st.write(
-                "Estado:",
-                diario["SEVERIDAD_SEC"].iloc[-1]
-            )
+        st.write(
+            "Estado:",
+            diario["SEVERIDAD_SEC"].iloc[-1]
+        )
 
+        # ---------------------------------------------------
         # OIDIO
+        # ---------------------------------------------------
 
-        with col4:
+        st.subheader("🔴 Oídio riesgo")
 
-            st.subheader("🔴 Oídio riesgo")
+        fig_or = go.Figure()
 
-            fig = go.Figure()
+        fig_or.add_trace(
 
-            fig.add_trace(
+            go.Scatter(
 
-                go.Scatter(
+                x=diario["DIA"],
+                y=diario["OIDIO"],
 
-                    x=diario["DIA"],
-                    y=diario["OIDIO"],
+                fill="tozeroy",
 
-                    fill="tozeroy",
+                mode="lines",
 
-                    mode="lines",
+                line_shape="spline",
 
-                    line_shape="spline",
-
-                    line=dict(
-                        color="#d62728",
-                        width=4
-                    )
+                line=dict(
+                    color="#d62728",
+                    width=4
                 )
             )
+        )
 
-            fig.update_yaxes(range=[0,100])
+        fig_or.update_yaxes(range=[0,100])
 
-            fig = estilo_figura(fig)
+        fig_or = estilo_figura(fig_or)
 
-            st.plotly_chart(
-                fig,
-                use_container_width=True
-            )
+        st.plotly_chart(
+            fig_or,
+            use_container_width=True
+        )
 
         # ---------------------------------------------------
         # BALANCE
