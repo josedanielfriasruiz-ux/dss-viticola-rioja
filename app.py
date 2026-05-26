@@ -47,16 +47,10 @@ def estilo_figura(fig):
     fig.update_layout(
         template="plotly_white",
         height=320,
-        margin=dict(
-            l=20,
-            r=20,
-            t=40,
-            b=20
-        ),
+        margin=dict(l=20, r=20, t=40, b=20),
         hovermode="x unified",
         paper_bgcolor="white",
-        plot_bgcolor="white",
-        font=dict(size=13)
+        plot_bgcolor="white"
     )
 
     fig.update_xaxes(
@@ -76,16 +70,14 @@ def estilo_figura(fig):
 # ---------------------------------------------------
 
 st.title("🍇 DSS Vitícola")
-st.markdown(
-    "### Dashboard epidemiológico estilo FieldClimate"
-)
+st.markdown("### Dashboard epidemiológico")
 
 # ---------------------------------------------------
-# UPLOAD
+# SUBIR ARCHIVO
 # ---------------------------------------------------
 
 uploaded_file = st.file_uploader(
-    "Sube archivo climático XLS",
+    "Sube archivo XLS",
     type=["xls"]
 )
 
@@ -98,7 +90,7 @@ if uploaded_file:
     try:
 
         # ---------------------------------------------------
-        # LEER XLS
+        # LEER ARCHIVO
         # ---------------------------------------------------
 
         df = pd.read_excel(
@@ -106,7 +98,7 @@ if uploaded_file:
             engine="xlrd"
         )
 
-        st.success("Archivo cargado correctamente")
+        st.success("Archivo cargado")
 
         # ---------------------------------------------------
         # COLUMNAS
@@ -117,7 +109,6 @@ if uploaded_file:
         temp_col = "Temp. Aire"
         hr_col = "Humedad"
         lluvia_col = "Precip."
-        viento_col = "Vel. Media"
 
         # ---------------------------------------------------
         # FECHAS
@@ -140,8 +131,7 @@ if uploaded_file:
         for c in [
             temp_col,
             hr_col,
-            lluvia_col,
-            viento_col
+            lluvia_col
         ]:
 
             df[c] = pd.to_numeric(
@@ -164,9 +154,7 @@ if uploaded_file:
         df["ET0"] = (
             0.0023 *
             (df[temp_col] + 17.8) *
-            np.sqrt(
-                df[temp_col].clip(lower=0)
-            )
+            np.sqrt(df[temp_col].clip(lower=0))
         )
 
         df["ET0_ACUM"] = (
@@ -174,15 +162,7 @@ if uploaded_file:
         )
 
         # ---------------------------------------------------
-        # LLUVIA
-        # ---------------------------------------------------
-
-        df["LLUVIA_ACUM"] = (
-            df[lluvia_col].cumsum()
-        )
-
-        # ---------------------------------------------------
-        # GDD BASE 10
+        # GDD
         # ---------------------------------------------------
 
         df["GDD10"] = (
@@ -195,7 +175,15 @@ if uploaded_file:
         )
 
         # ---------------------------------------------------
-        # BALANCE HIDRICO
+        # LLUVIA
+        # ---------------------------------------------------
+
+        df["LLUVIA_ACUM"] = (
+            df[lluvia_col].cumsum()
+        )
+
+        # ---------------------------------------------------
+        # BALANCE
         # ---------------------------------------------------
 
         CRAD = 120
@@ -230,11 +218,10 @@ if uploaded_file:
         diario = diario.reset_index()
 
         # ---------------------------------------------------
-        # OIDIO GUBLER THOMAS
+        # OIDIO
         # ---------------------------------------------------
 
         indice = 0
-
         oidio = []
 
         for i in range(len(diario)):
@@ -243,11 +230,9 @@ if uploaded_file:
             tmax = diario["TEMP_MAX"].iloc[i]
 
             if 21 <= t <= 30:
-
                 indice += 20
 
             if tmax > 35:
-
                 indice -= 20
 
             indice = max(0, min(100, indice))
@@ -304,11 +289,8 @@ if uploaded_file:
             elif evento:
 
                 if condiciones:
-
                     desarrollo += 20
-
                 else:
-
                     desarrollo += 10
 
             if desarrollo >= 100:
@@ -318,20 +300,18 @@ if uploaded_file:
 
             mildiu_prim.append(desarrollo)
 
-            if desarrollo == 0:
+            # SEVERIDAD
 
+            if desarrollo == 0:
                 severidad = "Sin infección"
 
             elif desarrollo < 30:
-
                 severidad = "Leve"
 
             elif desarrollo < 70:
-
                 severidad = "Media"
 
             else:
-
                 severidad = "Severa"
 
             severidad_prim.append(severidad)
@@ -340,96 +320,28 @@ if uploaded_file:
         diario["SEVERIDAD_PRIM"] = severidad_prim
 
         # ---------------------------------------------------
-        # MILDIU SECUNDARIO
-        # ---------------------------------------------------
-
-        mildiu_sec = []
-        severidad_sec = []
-
-        desarrollo = 0
-        evento = False
-
-        for i in range(len(diario)):
-
-            hr = diario["HR_MEDIA"].iloc[i]
-            temp = diario["TEMP_MEDIA"].iloc[i]
-
-            condiciones = (
-
-                hr > 90 and
-                12 <= temp <= 28
-
-            )
-
-            if condiciones and not evento:
-
-                evento = True
-                desarrollo = 15
-
-            elif evento:
-
-                if condiciones:
-
-                    desarrollo += 15
-
-                else:
-
-                    desarrollo += 5
-
-            if desarrollo >= 100:
-
-                desarrollo = 0
-                evento = False
-
-            mildiu_sec.append(desarrollo)
-
-            if desarrollo == 0:
-
-                severidad = "Sin infección"
-
-            elif desarrollo < 30:
-
-                severidad = "Leve"
-
-            elif desarrollo < 70:
-
-                severidad = "Media"
-
-            else:
-
-                severidad = "Severa"
-
-            severidad_sec.append(severidad)
-
-        diario["MILDIU_SEC"] = mildiu_sec
-        diario["SEVERIDAD_SEC"] = severidad_sec
-
-        # ---------------------------------------------------
         # KPIS
         # ---------------------------------------------------
 
-        st.header("📊 Resumen campaña")
+        st.header("📊 Resumen")
 
         c1, c2, c3 = st.columns(3)
 
         with c1:
-
             st.metric(
-                "☔ Lluvia acumulada",
+                "☔ Lluvia",
                 f"{df['LLUVIA_ACUM'].iloc[-1]:.1f} mm"
             )
 
         with c2:
-
             st.metric(
-                "💧 ET0 acumulada",
+                "💧 ET0",
                 f"{df['ET0_ACUM'].iloc[-1]:.1f} mm"
             )
 
         with c3:
-
             st.metric(
-                "🌡️ Integral térmica",
+                "🌡️ GDD",
                 f"{df['GDD10_ACUM'].iloc[-1]:.1f}"
             )
 
@@ -439,9 +351,9 @@ if uploaded_file:
 
         st.header("🌦️ Clima")
 
-        fig_clima = go.Figure()
+        fig = go.Figure()
 
-        fig_clima.add_trace(
+        fig.add_trace(
 
             go.Scatter(
 
@@ -453,7 +365,7 @@ if uploaded_file:
                 line_shape="spline",
 
                 line=dict(
-                    color="#d62728",
+                    color="red",
                     width=3
                 ),
 
@@ -461,7 +373,7 @@ if uploaded_file:
             )
         )
 
-        fig_clima.add_trace(
+        fig.add_trace(
 
             go.Bar(
 
@@ -474,59 +386,22 @@ if uploaded_file:
             )
         )
 
-        fig_clima = estilo_figura(fig_clima)
+        fig = estilo_figura(fig)
 
         st.plotly_chart(
-            fig_clima,
+            fig,
             use_container_width=True
         )
 
         # ---------------------------------------------------
-        # BOTRITIS
+        # MILDIU
         # ---------------------------------------------------
 
-        st.subheader("🟠 Botritis")
+        st.header("🟢 Mildiu primario")
 
-        fig_bot = go.Figure()
+        fig = go.Figure()
 
-        fig_bot.add_trace(
-
-            go.Scatter(
-
-                x=diario["DIA"],
-                y=diario["BOTRITIS"],
-
-                fill="tozeroy",
-
-                mode="lines",
-
-                line_shape="spline",
-
-                line=dict(
-                    color="#ff7f0e",
-                    width=3
-                )
-            )
-        )
-
-        fig_bot.update_yaxes(range=[0,100])
-
-        fig_bot = estilo_figura(fig_bot)
-
-        st.plotly_chart(
-            fig_bot,
-            use_container_width=True
-        )
-
-        # ---------------------------------------------------
-        # MILDIU PRIMARIO
-        # ---------------------------------------------------
-
-        st.subheader("🟢 Mildiu primario")
-
-        fig_mp = go.Figure()
-
-        fig_mp.add_trace(
+        fig.add_trace(
 
             go.Scatter(
 
@@ -540,77 +415,68 @@ if uploaded_file:
                 line_shape="spline",
 
                 line=dict(
-                    color="#2ca02c",
-                    width=3
+                    color="green",
+                    width=4
                 )
             )
         )
 
-        fig_mp.update_yaxes(range=[0,100])
+        fig.update_yaxes(range=[0,100])
 
-        fig_mp = estilo_figura(fig_mp)
+        fig = estilo_figura(fig)
 
         st.plotly_chart(
-            fig_mp,
+            fig,
             use_container_width=True
         )
 
-        st.write(
-            "Estado:",
-            diario["SEVERIDAD_PRIM"].iloc[-1]
-        )
-
         # ---------------------------------------------------
-        # MILDIU SECUNDARIO
+        # SEVERIDAD VISUAL
         # ---------------------------------------------------
 
-        st.subheader("🟢 Mildiu secundario")
+        estado = diario["SEVERIDAD_PRIM"].iloc[-1]
+        valor = diario["MILDIU_PRIM"].iloc[-1]
 
-        fig_ms = go.Figure()
+        if estado == "Leve":
+            color = "#ffe08a"
 
-        fig_ms.add_trace(
+        elif estado == "Media":
+            color = "#ff9f43"
 
-            go.Scatter(
+        elif estado == "Severa":
+            color = "#ee5253"
 
-                x=diario["DIA"],
-                y=diario["MILDIU_SEC"],
+        else:
+            color = "#2ecc71"
 
-                fill="tozeroy",
+        st.markdown(f"""
 
-                mode="lines",
+        <div style="
+        padding:15px;
+        border-radius:12px;
+        background:{color};
+        color:white;
+        font-size:22px;
+        font-weight:bold;
+        text-align:center;
+        margin-bottom:20px;
+        ">
 
-                line_shape="spline",
+        Infección {estado} — Desarrollo {valor:.0f}%
 
-                line=dict(
-                    color="#006400",
-                    width=3
-                )
-            )
-        )
+        </div>
 
-        fig_ms.update_yaxes(range=[0,100])
-
-        fig_ms = estilo_figura(fig_ms)
-
-        st.plotly_chart(
-            fig_ms,
-            use_container_width=True
-        )
-
-        st.write(
-            "Estado:",
-            diario["SEVERIDAD_SEC"].iloc[-1]
-        )
+        """, unsafe_allow_html=True)
 
         # ---------------------------------------------------
         # OIDIO
         # ---------------------------------------------------
 
-        st.subheader("🔴 Oídio riesgo")
+        st.header("🔴 Oídio")
 
-        fig_or = go.Figure()
+        fig = go.Figure()
 
-        fig_or.add_trace(
+        fig.add_trace(
 
             go.Scatter(
 
@@ -624,18 +490,55 @@ if uploaded_file:
                 line_shape="spline",
 
                 line=dict(
-                    color="#d62728",
+                    color="red",
                     width=4
                 )
             )
         )
 
-        fig_or.update_yaxes(range=[0,100])
+        fig.update_yaxes(range=[0,100])
 
-        fig_or = estilo_figura(fig_or)
+        fig = estilo_figura(fig)
 
         st.plotly_chart(
-            fig_or,
+            fig,
+            use_container_width=True
+        )
+
+        # ---------------------------------------------------
+        # BOTRITIS
+        # ---------------------------------------------------
+
+        st.header("🟠 Botritis")
+
+        fig = go.Figure()
+
+        fig.add_trace(
+
+            go.Scatter(
+
+                x=diario["DIA"],
+                y=diario["BOTRITIS"],
+
+                fill="tozeroy",
+
+                mode="lines",
+
+                line_shape="spline",
+
+                line=dict(
+                    color="orange",
+                    width=4
+                )
+            )
+        )
+
+        fig.update_yaxes(range=[0,100])
+
+        fig = estilo_figura(fig)
+
+        st.plotly_chart(
+            fig,
             use_container_width=True
         )
 
@@ -645,9 +548,9 @@ if uploaded_file:
 
         st.header("💧 Balance hídrico")
 
-        fig_balance = go.Figure()
+        fig = go.Figure()
 
-        fig_balance.add_trace(
+        fig.add_trace(
 
             go.Scatter(
 
@@ -661,58 +564,37 @@ if uploaded_file:
                 line_shape="spline",
 
                 line=dict(
-                    color="#2ca02c",
+                    color="green",
                     width=3
                 )
             )
         )
 
-        fig_balance = estilo_figura(fig_balance)
+        fig = estilo_figura(fig)
 
         st.plotly_chart(
-            fig_balance,
-            use_container_width=True
-        )
-
-        # ---------------------------------------------------
-        # GDD
-        # ---------------------------------------------------
-
-        st.header("🌡️ Integral térmica Base 10")
-
-        fig_gdd = go.Figure()
-
-        fig_gdd.add_trace(
-
-            go.Scatter(
-
-                x=df[fecha_col],
-                y=df["GDD10_ACUM"],
-
-                fill="tozeroy",
-
-                mode="lines",
-
-                line_shape="spline",
-
-                line=dict(
-                    color="#ff9900",
-                    width=3
-                )
-            )
-        )
-
-        fig_gdd = estilo_figura(fig_gdd)
-
-        st.plotly_chart(
-            fig_gdd,
+            fig,
             use_container_width=True
         )
 
     except Exception as e:
 
-        st.error(f"Error leyendo archivo: {e}")
+        st.error(f"Error: {e}")
 
 else:
 
-    st.info("Sube un archivo XLS climático")
+    st.info("Sube un archivo XLS")
+             
+
+             
+
+        
+        
+               
+
+       
+
+
+       
+       
+            
