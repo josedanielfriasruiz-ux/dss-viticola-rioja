@@ -70,10 +70,10 @@ def estilo_figura(fig):
 # ---------------------------------------------------
 
 st.title("🍇 DSS Vitícola")
-st.markdown("### Dashboard epidemiológico")
+st.markdown("### Dashboard epidemiológico calibrado")
 
 # ---------------------------------------------------
-# SUBIR ARCHIVO
+# UPLOAD
 # ---------------------------------------------------
 
 uploaded_file = st.file_uploader(
@@ -90,7 +90,7 @@ if uploaded_file:
     try:
 
         # ---------------------------------------------------
-        # LEER ARCHIVO
+        # LEER XLS
         # ---------------------------------------------------
 
         df = pd.read_excel(
@@ -98,7 +98,7 @@ if uploaded_file:
             engine="xlrd"
         )
 
-        st.success("Archivo cargado")
+        st.success("Archivo cargado correctamente")
 
         # ---------------------------------------------------
         # COLUMNAS
@@ -106,9 +106,13 @@ if uploaded_file:
 
         fecha_col = df.columns[0]
 
-        temp_col = "Temp. Aire"
-        hr_col = "Humedad"
-        lluvia_col = "Precip."
+        temp_col = "Temperatura media"
+        tmax_col = "Temperatura maxima"
+        tmin_col = "Temperatura minima"
+
+        hr_col = "Humedad media"
+        lluvia_col = "Precipitacion total"
+        viento_col = "Viento"
 
         # ---------------------------------------------------
         # FECHAS
@@ -130,9 +134,18 @@ if uploaded_file:
 
         for c in [
             temp_col,
+            tmax_col,
+            tmin_col,
             hr_col,
-            lluvia_col
+            lluvia_col,
+            viento_col
         ]:
+
+            df[c] = (
+                df[c]
+                .astype(str)
+                .str.replace(",", ".")
+            )
 
             df[c] = pd.to_numeric(
                 df[c],
@@ -140,25 +153,30 @@ if uploaded_file:
             )
 
         # ---------------------------------------------------
-        # DIA
+        # ET0 HARGREAVES
         # ---------------------------------------------------
 
-        df["DIA"] = (
-            df[fecha_col].dt.date
-        )
-
-        # ---------------------------------------------------
-        # ET0
-        # ---------------------------------------------------
+        ra = 20
 
         df["ET0"] = (
+
             0.0023 *
             (df[temp_col] + 17.8) *
-            np.sqrt(df[temp_col].clip(lower=0))
+            np.sqrt(df[tmax_col] - df[tmin_col]) *
+            ra
+
         )
 
         df["ET0_ACUM"] = (
             df["ET0"].cumsum()
+        )
+
+        # ---------------------------------------------------
+        # LLUVIA
+        # ---------------------------------------------------
+
+        df["LLUVIA_ACUM"] = (
+            df[lluvia_col].cumsum()
         )
 
         # ---------------------------------------------------
@@ -172,14 +190,6 @@ if uploaded_file:
 
         df["GDD10_ACUM"] = (
             df["GDD10"].cumsum()
-        )
-
-        # ---------------------------------------------------
-        # LLUVIA
-        # ---------------------------------------------------
-
-        df["LLUVIA_ACUM"] = (
-            df[lluvia_col].cumsum()
         )
 
         # ---------------------------------------------------
@@ -198,42 +208,59 @@ if uploaded_file:
         # RESUMEN DIARIO
         # ---------------------------------------------------
 
-        diario = df.groupby("DIA").agg({
+        diario = pd.DataFrame()
 
-            temp_col: ["mean", "max"],
+        diario["DIA"] = df[fecha_col]
 
-            hr_col: "mean",
+        diario["TEMP_MEDIA"] = df[temp_col]
+        diario["TEMP_MAX"] = df[tmax_col]
+        diario["TEMP_MIN"] = df[tmin_col]
 
-            lluvia_col: "sum"
-
-        })
-
-        diario.columns = [
-            "TEMP_MEDIA",
-            "TEMP_MAX",
-            "HR_MEDIA",
-            "LLUVIA"
-        ]
-
-        diario = diario.reset_index()
+        diario["HR_MEDIA"] = df[hr_col]
+        diario["LLUVIA"] = df[lluvia_col]
 
         # ---------------------------------------------------
-        # OIDIO
+        # OIDIO CALIBRADO
         # ---------------------------------------------------
 
         indice = 0
+        dias_favorables = 0
+
         oidio = []
 
         for i in range(len(diario)):
 
             t = diario["TEMP_MEDIA"].iloc[i]
             tmax = diario["TEMP_MAX"].iloc[i]
+            lluvia = diario["LLUVIA"].iloc[i]
 
-            if 21 <= t <= 30:
-                indice += 20
+            favorable = (
+                21 <= t <= 30
+            )
+
+            if favorable:
+
+                dias_favorables += 1
+
+                if dias_favorables >= 2:
+
+                    indice += 20
+
+            else:
+
+                dias_favorables = 0
+
+            # CALOR EXTREMO
 
             if tmax > 35:
-                indice -= 20
+
+                indice -= 10
+
+            # LLUVIA FUERTE
+
+            if lluvia > 15:
+
+                indice -= 10
 
             indice = max(0, min(100, indice))
 
@@ -249,10 +276,10 @@ if uploaded_file:
 
             (
                 (diario["HR_MEDIA"] > 85) &
-                (diario["TEMP_MEDIA"] > 15)
+                (diario["TEMP_MEDIA"] > 12)
             ),
 
-            30,
+            40,
 
             0
         )
@@ -273,25 +300,52 @@ if uploaded_file:
             hr = diario["HR_MEDIA"].iloc[i]
             temp = diario["TEMP_MEDIA"].iloc[i]
 
-            condiciones = (
+            disparo = (
 
-                lluvia > 2 and
-                hr > 85 and
-                11 <= temp <= 25
+                lluvia >= 2 and
+                hr >= 80 and
+                10 <= temp <= 26
 
             )
 
-            if condiciones and not evento:
+            incubacion = (
+
+                hr >= 75 and
+                11 <= temp <= 27
+
+            )
+
+            # NUEVO EVENTO
+
+            if disparo and not evento:
 
                 evento = True
-                desarrollo = 20
+                desarrollo = 25
+
+            # DESARROLLO
 
             elif evento:
 
-                if condiciones:
-                    desarrollo += 20
+                if incubacion:
+
+                    if lluvia > 0:
+
+                        desarrollo += 20
+
+                    else:
+
+                        desarrollo += 12
+
                 else:
-                    desarrollo += 10
+
+                    desarrollo -= 8
+
+            desarrollo = max(
+                0,
+                min(100, desarrollo)
+            )
+
+            # RESET
 
             if desarrollo >= 100:
 
@@ -303,16 +357,24 @@ if uploaded_file:
             # SEVERIDAD
 
             if desarrollo == 0:
-                severidad = "Sin infección"
 
-            elif desarrollo < 30:
+                severidad = "Sin infección"
+                color = "#2ecc71"
+
+            elif desarrollo < 35:
+
                 severidad = "Leve"
+                color = "#ffe08a"
 
             elif desarrollo < 70:
+
                 severidad = "Media"
+                color = "#ff9f43"
 
             else:
+
                 severidad = "Severa"
+                color = "#ee5253"
 
             severidad_prim.append(severidad)
 
@@ -323,25 +385,28 @@ if uploaded_file:
         # KPIS
         # ---------------------------------------------------
 
-        st.header("📊 Resumen")
+        st.header("📊 Resumen campaña")
 
         c1, c2, c3 = st.columns(3)
 
         with c1:
+
             st.metric(
-                "☔ Lluvia",
+                "☔ Lluvia acumulada",
                 f"{df['LLUVIA_ACUM'].iloc[-1]:.1f} mm"
             )
 
         with c2:
+
             st.metric(
-                "💧 ET0",
+                "💧 ET0 acumulada",
                 f"{df['ET0_ACUM'].iloc[-1]:.1f} mm"
             )
 
         with c3:
+
             st.metric(
-                "🌡️ GDD",
+                "🌡️ Integral térmica",
                 f"{df['GDD10_ACUM'].iloc[-1]:.1f}"
             )
 
@@ -430,9 +495,7 @@ if uploaded_file:
             use_container_width=True
         )
 
-        # ---------------------------------------------------
-        # SEVERIDAD VISUAL
-        # ---------------------------------------------------
+        # SEVERIDAD
 
         estado = diario["SEVERIDAD_PRIM"].iloc[-1]
         valor = diario["MILDIU_PRIM"].iloc[-1]
@@ -543,7 +606,7 @@ if uploaded_file:
         )
 
         # ---------------------------------------------------
-        # BALANCE
+        # BALANCE HIDRICO
         # ---------------------------------------------------
 
         st.header("💧 Balance hídrico")
@@ -577,6 +640,41 @@ if uploaded_file:
             use_container_width=True
         )
 
+        # ---------------------------------------------------
+        # GDD
+        # ---------------------------------------------------
+
+        st.header("🌡️ Integral térmica Base 10")
+
+        fig = go.Figure()
+
+        fig.add_trace(
+
+            go.Scatter(
+
+                x=df[fecha_col],
+                y=df["GDD10_ACUM"],
+
+                fill="tozeroy",
+
+                mode="lines",
+
+                line_shape="spline",
+
+                line=dict(
+                    color="#ff9900",
+                    width=3
+                )
+            )
+        )
+
+        fig = estilo_figura(fig)
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
     except Exception as e:
 
         st.error(f"Error: {e}")
@@ -584,17 +682,3 @@ if uploaded_file:
 else:
 
     st.info("Sube un archivo XLS")
-             
-
-             
-
-        
-        
-               
-
-       
-
-
-       
-       
-            
